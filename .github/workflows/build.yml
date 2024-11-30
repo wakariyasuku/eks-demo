@@ -32,11 +32,19 @@ jobs:
       id: login-ecr
       uses: aws-actions/amazon-ecr-login@v2
 
-    - name: Push Docker Image to ECR
+    - name: Build, Tag, Push Docker Image to ECR
       env:
         AWS_ACCOUNT_ID: ${{ secrets.AWS_ACCOUNT_ID }}
-        IMAGE_TAG: latest
+        IMAGE_TAG: $(date +'%Y-%m-%d-%H-%M')  # 西暦、日付、時間（例: 2024-11-30-14-25）
         REPOSITORY_NAME: eks-demo-ecr
       run: |
-        docker tag streamlit-app:latest $AWS_ACCOUNT_ID.dkr.ecr.${{ env.AWS_REGION }}.amazonaws.com/$REPOSITORY_NAME:$IMAGE_TAG
+        # Build Docker image with a dynamic tag (based on date and time)
+        docker build -t $AWS_ACCOUNT_ID.dkr.ecr.${{ env.AWS_REGION }}.amazonaws.com/$REPOSITORY_NAME:$IMAGE_TAG ./app
+        
+        # Tag Docker image
+        docker tag $AWS_ACCOUNT_ID.dkr.ecr.${{ env.AWS_REGION }}.amazonaws.com/$REPOSITORY_NAME:$IMAGE_TAG \
+          $AWS_ACCOUNT_ID.dkr.ecr.${{ env.AWS_REGION }}.amazonaws.com/$REPOSITORY_NAME:$IMAGE_TAG
+        
+        # Push Docker image to ECR
         docker push $AWS_ACCOUNT_ID.dkr.ecr.${{ env.AWS_REGION }}.amazonaws.com/$REPOSITORY_NAME:$IMAGE_TAG
+
