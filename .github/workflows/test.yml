@@ -36,11 +36,11 @@ jobs:
     - name: Build Docker Image
       run: docker build -t streamlit-app:latest ./app
 
+    - name: Run Docker Image
+      run: docker run -d -p 8501:8501 --name streamlit-app streamlit-app:latest
+
     - name: Run HTTP Request Test
-      run: |
-        docker run -d -p 8501:8501 --name streamlit-app streamlit-app:latest
-        sleep 20
-        python app/test/http_test.py
+      run: python app/test/http-test.py
 
     - name: Stop and Remove Docker Image
       run: |
