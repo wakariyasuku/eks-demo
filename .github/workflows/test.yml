@@ -27,7 +27,7 @@ jobs:
 
     - name: Install dependencies
       run: |
-        pip install -r requirements.txt
+        pip install -r app/requirements.txt
         pip install pylint requests
 
     - name: Run Lint Test
