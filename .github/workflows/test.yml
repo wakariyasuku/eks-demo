@@ -1,0 +1,48 @@
+name: Lint and Test
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - 'app/**'
+  pull_request:
+    branches:
+      - main
+    paths:
+      - 'app/**'
+
+jobs:
+  lint-test:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.11'
+
+    - name: Install dependencies
+      run: |
+        pip install -r requirements.txt
+        pip install pylint requests
+
+    - name: Run Lint Test
+      run: pylint app/*.py --exit-zero
+
+    - name: Build Docker Image
+      run: docker build -t streamlit-app:latest ./app
+
+    - name: Run HTTP Request Test
+      run: |
+        docker run -d -p 8501:8501 --name streamlit-app streamlit-app:latest
+        sleep 20
+        python app/test/http_test.py
+
+    - name: Stop and Remove Docker Image
+      run: |
+        docker stop streamlit-app
+        docker rm streamlit-app
