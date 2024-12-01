@@ -43,7 +43,7 @@ jobs:
         artifact_type: 'container'
         artifact_path: streamlit-app:latest
 
-    - name: Stop the build if vulnerabilities are detected
+    - name: Stop the build if vulnerabilities are detected # works with Trivy(aquasecurity/trivy-action@master) too
       if: ${{ steps.inspector.outputs.vulnerability_threshold_exceeded == 'true' }}
       run: |
         echo "High or Critical vulnerabilities detected. Stopping the build."
