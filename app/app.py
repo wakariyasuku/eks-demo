@@ -26,6 +26,5 @@ def generate_markdown(df):
     return df.to_markdown(index=False)
 
 
-
 if __name__ == '__main__':
     main()
