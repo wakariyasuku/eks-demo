@@ -34,12 +34,17 @@ jobs:
 
     - name: Build, Tag, Push Docker Image to ECR
       env:
+        IMAGE_NAME: streamlit-app
+        IMAGE_TAG: ${{ github.sha }} 
+      run: docker build -t $IMAGE_NAME-${{ github.sha }}  ./app
+
+    - name: Tag, Push Docker Image to ECR
+      env:
         AWS_ACCOUNT_ID: ${{ secrets.AWS_ACCOUNT_ID }}
-        IMAGE_TAG: $(date +'%Y-%m-%d-%H-%M')  # 西暦、日付、時間（例: 2024-11-30-14-25）
+        IMAGE_NAME: streamlit-app
+        IMAGE_TAG: ${{ github.sha }} 
         REPOSITORY_NAME: eks-demo-ecr
       run: |
-        docker build -t $AWS_ACCOUNT_ID.dkr.ecr.${{ env.AWS_REGION }}.amazonaws.com/$REPOSITORY_NAME:$IMAGE_TAG ./app
-        docker tag $AWS_ACCOUNT_ID.dkr.ecr.${{ env.AWS_REGION }}.amazonaws.com/$REPOSITORY_NAME:$IMAGE_TAG \
-          $AWS_ACCOUNT_ID.dkr.ecr.${{ env.AWS_REGION }}.amazonaws.com/$REPOSITORY_NAME:$IMAGE_TAG
-        docker push $AWS_ACCOUNT_ID.dkr.ecr.${{ env.AWS_REGION }}.amazonaws.com/$REPOSITORY_NAME:$IMAGE_TAG
+        docker tag $REPOSITORY_NAME:$IMAGE_NAME-$IMAGE_TAG $AWS_ACCOUNT_ID.dkr.ecr.ap-northeast-1.amazonaws.com/$REPOSITORY_NAME:$IMAGE_NAME-$IMAGE_TAG
+        docker push $AWS_ACCOUNT_ID.dkr.ecr.${{ env.AWS_REGION }}.amazonaws.com/$REPOSITORY_NAME:$IMAGE_NAME-$IMAGE_TAG
 
