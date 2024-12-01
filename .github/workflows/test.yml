@@ -36,6 +36,19 @@ jobs:
     - name: Build Docker Image
       run: docker build -t streamlit-app:latest ./app
 
+    - name: Scan with Inspector
+      id: inspector
+      uses: aws-actions/vulnerability-scan-github-action-for-amazon-inspector@v1
+      with:
+        artifact_type: 'container'
+        artifact_path: streamlit-app:latest
+
+    - name: Stop the build if vulnerabilities are detected
+      if: ${{ steps.inspector.outputs.vulnerability_threshold_exceeded == 'true' }}
+      run: |
+        echo "High or Critical vulnerabilities detected. Stopping the build."
+        exit 1
+
     - name: Run Docker Image
       run: docker run -d -p 8501:8501 --name streamlit-app streamlit-app:latest
 
