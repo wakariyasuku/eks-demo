@@ -1,6 +1,9 @@
 # ベースイメージとしてPython 3.11を使用
 FROM python:3.11
 
+# OSのパッケージを更新
+RUN apt-get update && apt-get upgrade -y && apt-get clean
+
 # 作業ディレクトリを設定
 WORKDIR /app
 
