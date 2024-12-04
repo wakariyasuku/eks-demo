@@ -25,6 +25,5 @@ def generate_markdown(df):
     # DataFrameをマークダウン形式の文字列に変換
     return df.to_markdown(index=False)
 
-
 if __name__ == '__main__':
     main()
