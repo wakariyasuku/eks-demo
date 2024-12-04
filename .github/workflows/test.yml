@@ -37,7 +37,10 @@ jobs:
       run: docker build -t streamlit-app:latest ./app
 
     # Trivy(aquasecurity/trivy-action@master) is one of the choices too.
-    - name: Scan with Inspector # Need to ennable Inspector on Management Condole, have permission to access the ScanSbom Action on the role.
+    # Need to ennable Inspector on Management Condole, have permission to access the ScanSbom Action on the role
+    # and write custom trust policy based on the document insruction.
+
+    - name: Scan with Inspector 
       id: inspector
       uses: aws-actions/vulnerability-scan-github-action-for-amazon-inspector@v1
       with:
