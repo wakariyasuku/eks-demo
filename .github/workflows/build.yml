@@ -16,6 +16,8 @@ permissions:
 
 jobs:
   push-to-ecr:
+    # Only run if the previous workflow (Lint and Test) was successful
+    if: ${{ github.event.workflow_run.conclusion == 'success' }}
     runs-on: ubuntu-latest
 
     steps:
