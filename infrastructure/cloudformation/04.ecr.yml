@@ -1,0 +1,34 @@
+AWSTemplateFormatVersion: 2010-09-09
+Description: ECR template
+
+Parameters:
+  System:
+    Type: String
+    Default: eks-demo
+  HelmChartName:
+    Type: String
+    Default: helm-chart-name
+
+Resources:
+# ------------------------------------------------------------#
+# ECR 
+# ------------------------------------------------------------# 
+  ECRDockerImage:
+    Type: 'AWS::ECR::Repository'
+    Properties:
+      RepositoryName: !Sub ${System}-ecr
+      EmptyOnDelete: false
+      EncryptionConfiguration:
+        EncryptionType: KMS
+      ImageScanningConfiguration:
+        ScanOnPush: true
+
+  ECRHelmChart:
+    Type: 'AWS::ECR::Repository'
+    Properties:
+      RepositoryName: !Sub ${System}-ecr/${HelmChartName}
+      EmptyOnDelete: false
+      EncryptionConfiguration:
+        EncryptionType: KMS
+      ImageScanningConfiguration:
+        ScanOnPush: true

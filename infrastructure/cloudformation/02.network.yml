@@ -1,0 +1,282 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Description: Network template
+
+Parameters:
+  System:
+    Type: String
+    Default: eks-demo
+
+Resources:
+# ------------------------------------------------------------#
+# VPC・Subnet
+# ------------------------------------------------------------# 
+  VPC:
+    Type: AWS::EC2::VPC
+    Properties:
+      CidrBlock: 10.0.0.0/16
+      EnableDnsSupport: true
+      EnableDnsHostnames: true
+      Tags:
+      - Key: Name
+        Value: !Sub ${System}-vpc      
+
+# public
+  PublicSubnet1:
+    Type: AWS::EC2::Subnet
+    Properties:
+      AvailabilityZone: ap-northeast-1a
+      CidrBlock: 10.0.0.0/24
+      VpcId: !Ref VPC
+      Tags:
+      - Key: Name
+        Value: !Sub ${System}-public-subnet-alb-1   
+      - Key:  kubernetes.io/role/elb
+        Value: 1
+
+  PublicSubnet2:
+    Type: AWS::EC2::Subnet
+    Properties:
+      AvailabilityZone: ap-northeast-1c
+      CidrBlock: 10.0.1.0/24
+      VpcId: !Ref VPC
+      Tags:
+      - Key: Name
+        Value: !Sub ${System}-public-subnet-alb-2
+      - Key:  kubernetes.io/role/elb
+        Value: 1
+
+  PublicSubnet3:
+    Type: AWS::EC2::Subnet
+    Properties:
+      AvailabilityZone: ap-northeast-1a
+      CidrBlock: 10.0.2.0/24
+      VpcId: !Ref VPC
+      Tags:
+      - Key: Name
+        Value: !Sub ${System}-public-subnet-nat-gateway          
+
+# private
+  PrivateSubnet1:
+    Type: AWS::EC2::Subnet
+    Properties:
+      AvailabilityZone: ap-northeast-1a
+      CidrBlock: 10.0.3.0/24
+      VpcId: !Ref VPC
+      Tags:
+      - Key: Name
+        Value: !Sub ${System}-private-subnet-eks-1      
+
+  PrivateSubnet2:
+    Type: AWS::EC2::Subnet
+    Properties:
+      AvailabilityZone: ap-northeast-1c
+      CidrBlock: 10.0.4.0/24
+      VpcId: !Ref VPC
+      Tags:
+      - Key: Name
+        Value: !Sub ${System}-private-subnet-eks-2        
+
+  PrivateSubnet3:
+    Type: AWS::EC2::Subnet
+    Properties:
+      AvailabilityZone: ap-northeast-1a
+      CidrBlock: 10.0.5.0/24
+      VpcId: !Ref VPC
+      Tags:
+      - Key: Name
+        Value: !Sub ${System}-private-subnet-bastion-ec2       
+
+  PrivateSubnet4:
+    Type: AWS::EC2::Subnet
+    Properties:
+      AvailabilityZone: ap-northeast-1a
+      CidrBlock: 10.0.6.0/24
+      VpcId: !Ref VPC
+      Tags:
+      - Key: Name
+        Value: !Sub ${System}-private-subnet-endpoint        
+
+# ------------------------------------------------------------#
+# Internet Gateway
+# ------------------------------------------------------------# 
+  InternetGateway:
+    Type: AWS::EC2::InternetGateway
+    Properties:
+      Tags: 
+        - Key: Name
+          Value: !Sub ${System}-igw
+
+# attch to internet gateway
+  InternetGatewayAttachment:
+    Type: AWS::EC2::VPCGatewayAttachment
+    Properties:
+      InternetGatewayId: !Ref InternetGateway
+      VpcId: !Ref VPC
+
+# ------------------------------------------------------------#
+# Route Table
+# ------------------------------------------------------------# 
+# public
+  PublicRouteTable:
+    Type: AWS::EC2::RouteTable
+    Properties:
+      VpcId: !Ref VPC
+      Tags:
+      - Key: Name
+        Value: !Sub ${System}-public-route-table      
+
+  PublicRouteTableRoute:
+    Type: AWS::EC2::Route
+    Properties:
+      DestinationCidrBlock: 0.0.0.0/0
+      GatewayId: !Ref InternetGateway
+      RouteTableId: !Ref PublicRouteTable
+
+  PublicRtAssociation1:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      RouteTableId: !Ref PublicRouteTable
+      SubnetId: !Ref PublicSubnet1
+
+  PublicRtAssociation2:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      RouteTableId: !Ref PublicRouteTable
+      SubnetId: !Ref PublicSubnet2
+
+  PublicRtAssociation3:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      RouteTableId: !Ref PublicRouteTable
+      SubnetId: !Ref PublicSubnet3
+
+# private
+  PrivateRouteTable:
+    Type: AWS::EC2::RouteTable
+    Properties:
+      VpcId: !Ref VPC
+      Tags:
+      - Key: Name
+        Value: !Sub ${System}-private-route-table                
+
+  PrivateRouteTableRoute:
+    Type: AWS::EC2::Route
+    Properties:
+      RouteTableId:
+        Ref: PrivateRouteTable
+      DestinationCidrBlock: 0.0.0.0/0
+      NatGatewayId: !Ref NatGateway
+
+  PrivateRtAssociation1:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      RouteTableId: !Ref PrivateRouteTable
+      SubnetId: !Ref PrivateSubnet1
+
+  PrivateRtAssociation2:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      RouteTableId: !Ref PrivateRouteTable
+      SubnetId: !Ref PrivateSubnet2
+
+  PrivateRtAssociation3:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      RouteTableId: !Ref PrivateRouteTable
+      SubnetId: !Ref PrivateSubnet3      
+
+  PrivateRtAssociation4:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      RouteTableId: !Ref PrivateRouteTable
+      SubnetId: !Ref PrivateSubnet4 
+
+# ------------------------------------------------------------#
+# Security Group
+# ------------------------------------------------------------# 
+  ALBSG:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: alb sg
+      GroupName: alb-sg
+      SecurityGroupIngress:
+        - FromPort: 80
+          IpProtocol: tcp
+          CidrIp: 0.0.0.0/0
+          ToPort: 80
+      VpcId: !Ref VPC
+
+  EKSControlPlaneSG:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: eks control plane sg
+      GroupName: eks-control-plane-sg
+      SecurityGroupIngress:
+        - FromPort: 443
+          IpProtocol: tcp
+          SourceSecurityGroupId: !Ref BastionEC2SG
+          ToPort: 443   
+      VpcId: !Ref VPC
+
+  EKSSG:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: eks sg
+      GroupName: eks-sg
+      SecurityGroupIngress:
+        - FromPort: 8501
+          IpProtocol: tcp
+          SourceSecurityGroupId: !Ref ALBSG
+          ToPort: 8501    
+      VpcId: !Ref VPC
+
+  EKSIngress:
+    Type: AWS::EC2::SecurityGroupIngress # eks requirement
+    Properties:
+      GroupId: !Ref EKSSG
+      FromPort: -1
+      IpProtocol: "-1"
+      SourceSecurityGroupId: !Ref EKSSG
+      ToPort: -1
+
+  VPCEndpointSG:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: vpc endpoint sg
+      GroupName: vpc-endpoint-sg
+      SecurityGroupIngress: 
+        - SourceSecurityGroupId: !Ref EKSSG
+          FromPort: 443
+          IpProtocol: tcp
+          ToPort: 443
+        - IpProtocol: tcp # access to bastion ec2 via endpoint from vpc
+          FromPort: 443
+          ToPort: 443
+          CidrIp: 10.0.0.0/16       
+      VpcId: !Ref VPC
+
+  BastionEC2SG:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: bastion ec2 sg
+      GroupName: bastion-ec2-sg      
+      VpcId: !Ref VPC
+
+# ------------------------------------------------------------#
+# Nat Gateway
+# ------------------------------------------------------------# 
+# elastic ip for nat gateway
+  ElasticIPForNatGateway:
+    Type: 'AWS::EC2::EIP'
+    Properties:
+      Domain: !Ref VPC
+
+  NatGateway:
+    Type: 'AWS::EC2::NatGateway'
+    Properties:
+      AllocationId: !GetAtt ElasticIPForNatGateway.AllocationId
+      SubnetId: !Ref PublicSubnet3
+      Tags:
+        - Key: Name
+          Value: !Sub '${System}-public-nat-gateway'
+

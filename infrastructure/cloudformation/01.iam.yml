@@ -1,0 +1,80 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Description: iam template
+
+Parameters:
+  System:
+    Type: String
+    Default: eks-demo
+  GithubRepositoryName:
+    Type: String
+    Default: github-repository-name
+
+Resources:
+# ------------------------------------------------------------#
+# IAM Provider
+# ------------------------------------------------------------# 
+  GitHubOIDCProvider:
+    Type: "AWS::IAM::OIDCProvider"
+    Properties:
+      Url: "https://token.actions.githubusercontent.com"
+      ClientIdList:
+        - "sts.amazonaws.com"
+
+# ------------------------------------------------------------#
+# IAM Roles and Policy
+# ------------------------------------------------------------# 
+  GitHubActionsOIDCRole:
+    Type: "AWS::IAM::Role"
+    Properties:
+      RoleName: !Sub "${System}-github-actions-oidc-role"
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: "Allow"
+            Principal:
+              Federated: !Ref GitHubOIDCProvider
+            Action: "sts:AssumeRoleWithWebIdentity"
+            Condition:
+              StringEquals:
+                "token.actions.githubusercontent.com:aud": "sts.amazonaws.com"
+              StringLike:
+                !Sub "token.actions.githubusercontent.com:sub": "repo:${GithubRepositoryName}:*"
+          - Effect: "Allow"
+            Principal:
+              AWS: !Sub "arn:aws:iam::${AWS::AccountId}:root"
+            Action: "sts:AssumeRole"
+            Condition: {}
+      ManagedPolicyArns:
+        - "arn:aws:iam::aws:policy/AmazonEC2ContainerRegistryFullAccess"
+        - "arn:aws:iam::aws:policy/AmazonEC2FullAccess"
+        - "arn:aws:iam::aws:policy/AmazonS3FullAccess"
+        - "arn:aws:iam::aws:policy/AWSCloudFormationFullAccess"
+        - "arn:aws:iam::aws:policy/CloudWatchLogsFullAccess"
+        - "arn:aws:iam::aws:policy/IAMFullAccess"
+        - "arn:aws:iam::aws:policy/job-function/NetworkAdministrator"
+        - "arn:aws:iam::aws:policy/SecretsManagerReadWrite"
+        - !Sub "arn:aws:iam::${AWS::AccountId}:policy/${System}-inspector-scan-policy" 
+
+  InspectorScanPolicy: # there is no managed policy from aws which has only inspector-scan:ScanSbom as an action.
+    Type: "AWS::IAM::ManagedPolicy"
+    Properties:
+      ManagedPolicyName: !Sub "${System}-inspector-scan-policy"
+      PolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: "Allow"
+            Action:
+              - "inspector-scan:ScanSbom"
+            Resource: "*"
+
+  EksFullAccessPolicy: # there is no managed policy from aws which has eks:* as an action.
+    Type: "AWS::IAM::ManagedPolicy"
+    Properties:
+      ManagedPolicyName: !Sub "${System}-eks-full-access-policy"
+      PolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: "Allow"
+            Action:
+              - "eks:*"
+            Resource: "*"

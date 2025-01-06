@@ -1,0 +1,99 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: EC2 template
+
+Parameters:
+  System:
+    Type: String
+    Default: eks-demo
+
+  SubnetId:
+    Type: AWS::EC2::Subnet::Id
+
+  SecurityGroupId:
+    Type: AWS::EC2::SecurityGroup::Id
+
+Resources:
+# ------------------------------------------------------------#
+# EC2 IAM Role
+# ------------------------------------------------------------# 
+  EC2IAMRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: !Sub ${System}-ssm-role
+      AssumeRolePolicyDocument:
+        Version: 2012-10-17
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service:
+                - ec2.amazonaws.com
+            Action:
+              - sts:AssumeRole
+      Path: /
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/AmazonSSMManagedInstanceCore
+        - arn:aws:iam::aws:policy/AmazonEC2ContainerRegistryFullAccess
+        - arn:aws:iam::aws:policy/AmazonEC2FullAccess # eksctl describe networks and create security groups
+        - arn:aws:iam::aws:policy/AWSCloudFormationFullAccess # eksctl creates a stack
+        - arn:aws:iam::aws:policy/IAMFullAccess # eksctl create roles
+        - arn:aws:iam::aws:policy/CloudWatchLogsFullAccess # eksctl put logs retention days
+        - !Sub arn:aws:iam::${AWS::AccountId}:policy/eks-demo-eks-full-access-policy # to delete failed cluster
+
+
+# ------------------------------------------------------------#
+# EC2 Instance Profile
+# ------------------------------------------------------------# 
+  EC2InstanceProfile:
+    Type: AWS::IAM::InstanceProfile
+    Properties:
+      Path: /
+      Roles:
+        - Ref: EC2IAMRole
+      InstanceProfileName: !Sub ${System}-ec2-instance-profile
+      
+# ------------------------------------------------------------#
+# EC2 Instance
+# ------------------------------------------------------------#       
+  EC2Instance:
+    Type: AWS::EC2::Instance
+    Properties:
+      ImageId: ami-0c6359fd9eb30edcf # ap-northeast-1 Amazon Linux 2023 AMI ID    
+      InstanceType: t2.micro
+      SubnetId: !Ref SubnetId
+      SecurityGroupIds:
+        - !Ref SecurityGroupId
+      IamInstanceProfile: !Ref EC2InstanceProfile
+      Tags:
+        - Key: Name
+          Value: !Sub ${System}-bastion-ec2
+      UserData: # check the result at /var/log/cloud-init-output.log
+        Fn::Base64: !Sub |
+          #!/bin/bash
+          set -ex
+          # Update packages
+          sudo dnf update -y
+
+          # Install kubectl
+          curl -O https://s3.us-west-2.amazonaws.com/amazon-eks/1.31.0/2024-09-12/bin/linux/amd64/kubectl 
+          chmod +x ./kubectl
+          mkdir -p $HOME/bin && cp ./kubectl $HOME/bin/kubectl && export PATH=$HOME/bin:$PATH
+
+          # Install eksctl
+          ARCH=amd64
+          PLATFORM=$(uname -s)_$ARCH
+          curl -sLO "https://github.com/eksctl-io/eksctl/releases/latest/download/eksctl_$PLATFORM.tar.gz"
+          tar -xzf eksctl_$PLATFORM.tar.gz -C /tmp
+          sudo mv /tmp/eksctl /usr/local/bin
+
+          # Install helm
+          curl https://raw.githubusercontent.com/helm/helm/main/scripts/get-helm-3 | bash
+
+          # Verify installations
+          kubectl version --client
+          eksctl version
+          helm version
+
+          # Install argo cd
+          curl -sSL -o /usr/local/bin/argocd https://github.com/argoproj/argo-cd/releases/latest/download/argocd-linux-amd64
+          chmod +x /usr/local/bin/argocd
+          argocd version

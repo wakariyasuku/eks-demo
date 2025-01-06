@@ -1,0 +1,35 @@
+namespace: eks-demo
+
+app:
+  name: streamlit-app
+  replicaCount: 2
+  image:
+    repository: 622632352793.dkr.ecr.ap-northeast-1.amazonaws.com/eks-demo-ecr
+    tag: streamlit-app-d8055f7447a3fe8c1ee3965acf551ca3dda14747
+  resources:
+    requests:
+      memory: "256Mi"
+      cpu: "250m"
+    limits:
+      memory: "512Mi"
+      cpu: "500m"
+  port: 8501
+
+service:
+  type: NodePort
+  port: 443
+  targetPort: 8501
+
+ingress:
+  enabled: true
+  className: alb
+  host: eks-demo.wakaru-blog.com
+  certificateArn: arn:aws:acm:ap-northeast-1:622632352793:certificate/c93cdcf9-9831-4c30-967b-7833cd16f678
+
+pdb:
+  minAvailable: 1
+  
+hpa:
+  minReplicas: 2
+  maxReplicas: 10
+  targetCPUUtilizationPercentage: 50
