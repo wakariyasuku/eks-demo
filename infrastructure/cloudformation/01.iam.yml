@@ -5,6 +5,9 @@ Parameters:
   System:
     Type: String
     Default: eks-demo
+  GithubUserName:
+    Type: String
+    Default: github-user-name
   GithubRepositoryName:
     Type: String
     Default: github-repository-name
@@ -38,7 +41,7 @@ Resources:
               StringEquals:
                 "token.actions.githubusercontent.com:aud": "sts.amazonaws.com"
               StringLike:
-                !Sub "token.actions.githubusercontent.com:sub": "repo:${GithubRepositoryName}:*"
+                !Sub "token.actions.githubusercontent.com:sub": "repo:${GithubUserName}/${GithubRepositoryName}:*"
           - Effect: "Allow"
             Principal:
               AWS: !Sub "arn:aws:iam::${AWS::AccountId}:root"
